@@ -315,7 +315,7 @@ decl_storage! {
 	trait Store for Module<T: Trait> as Dex {
 		/// The `AccountId` of the sudo key.
 		Key get(key) config(): T::AccountId;
-
+        //BP get(bp) config(): OrderPair;
 		/// each order have an uinque u128 index
 		pub OrderIndex get(order_index): u128 = 0;
 
@@ -332,6 +332,15 @@ decl_storage! {
         // real order record
         pub OrderInfor get(order_info): map u128 => Option<OrderInfo<T>>;
 	}
+		add_extra_genesis {
+		    config(bp):  u64;
+            build(|config: &GenesisConfig<T>|  {
+                OrderPairList::put(vec![OrderPair{
+                    first: vec![1u8,2],
+                    second: vec![3u8,4],
+                }]);
+			});
+		}
 }
 
 impl<T: Trait> Module<T> {

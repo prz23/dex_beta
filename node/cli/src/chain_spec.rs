@@ -167,9 +167,12 @@ fn staging_testnet_config_genesis() -> GenesisConfig {
 		}),
 		dex: Some(DexConfig {
 			key: endowed_accounts[0].clone(),
+			bp: 1u64,
 		}),
 		token: Some(TokenConfig {
 			key: endowed_accounts[0].clone(),
+			bt: 1u64,
+			//basic_token: vec![(vec![1u8,2],1000u64),(vec![3u8,4],1000u64)],
 		}),
 		generic_asset: Some(GenericAssetConfig {
 			assets: vec![1],
@@ -315,9 +318,12 @@ pub fn testnet_genesis(
 		}),
 		dex: Some(DexConfig {
 			key: endowed_accounts[0].clone(),
+			bp: 1u64,
 		}),
 		token: Some(TokenConfig {
 			key: endowed_accounts[0].clone(),
+			bt: 1u64,
+			//basic_token: vec![(vec![1u8,2],1000u64),(vec![3u8,4],1000u64)],
 		}),
 		generic_asset: Some(GenericAssetConfig {
 			assets: vec![1],

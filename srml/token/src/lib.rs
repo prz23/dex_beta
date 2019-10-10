@@ -272,9 +272,20 @@ decl_storage! {
 		FreeToken get(free_token) : map (Vec<u8>,T::AccountId) => u64;
 		LockedToken get(locked_token) : map (Vec<u8>,T::AccountId) => u64;
 	}
+	add_extra_genesis {
+		config(bt):  u64;
+        build(|config: &GenesisConfig<T>|  {
+         <Module<T>>::init_token();
+        });
+	}
 }
 
 impl<T: Trait> Module<T>{
+
+    pub fn init_token(){
+		TokenTypeAndPrecision::insert(vec![1u8,2],1000);
+		TokenTypeAndPrecision::insert(vec![3u8,4],1000);
+	}
 
 	pub fn depositing_token(dest:&T::AccountId, tokentype:Vec<u8>, value:u64) -> Result{
 		Self::mint(dest,&tokentype,value)?;

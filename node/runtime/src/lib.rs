@@ -523,7 +523,7 @@ construct_runtime!(
 		ImOnline: im_online::{Module, Call, Storage, Event<T>, ValidateUnsigned, Config<T>},
 		AuthorityDiscovery: authority_discovery::{Module, Call, Config<T>},
 		Offences: offences::{Module, Call, Storage, Event},
-		Dex: dex,
+		Dex: dex::{Module, Call, Storage, Event<T>, Config<T>},
 		Token: token,
         GenericAsset:generic_asset,
 	}
