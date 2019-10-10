@@ -95,6 +95,18 @@ use support::{StorageValue, StorageMap, Parameter, decl_module, decl_event, decl
 use support::traits::{Currency,ExistenceRequirement,WithdrawReason};
 use system::ensure_signed;
 use generic_asset;
+use codec::{Encode, Decode, Codec};
+
+#[cfg(feature = "std")]
+#[macro_use]
+extern crate serde_derive;
+
+#[derive(PartialEq, Eq, Clone, Copy, Encode, Decode)]
+#[cfg_attr(feature = "std", derive(Serialize, Deserialize, Debug))]
+pub enum TokenControl {
+	Free,
+	Lock,
+}
 
 pub trait Token<AccountId>{
 	type Tokens: Copy + Default + SimpleArithmetic;
@@ -105,7 +117,7 @@ pub trait Token<AccountId>{
 
 	fn set_free_token(who:&AccountId, tokentype:&Vec<u8>, val:Self::Tokens);
 
-	fn set_lcok_token(who:&AccountId, tokentype:&Vec<u8>, val:Self::Tokens);
+	fn set_lock_token(who:&AccountId, tokentype:&Vec<u8>, val:Self::Tokens);
 
 	fn transfer(source: &AccountId, dest: &AccountId, tokentype:&Vec<u8>, value: Self::Tokens, ) -> Result;
 
@@ -135,7 +147,7 @@ impl<T:Trait> Token<T::AccountId> for Module<T>{
 		<FreeToken<T>>::insert((tokentype.clone(),who.clone()),val);
 	}
 
-	fn set_lcok_token(who:&T::AccountId, tokentype:&Vec<u8>, val:Self::Tokens){
+	fn set_lock_token(who:&T::AccountId, tokentype:&Vec<u8>, val:Self::Tokens){
 		<LockedToken<T>>::insert((tokentype.clone(),who.clone()),val);
 	}
 
@@ -169,7 +181,7 @@ impl<T:Trait> Token<T::AccountId> for Module<T>{
 		let lcok_new = Self::amount_lock(who, tokentype) + value;
 
 		Self::set_free_token(who,tokentype,free_new);
-		Self::set_lcok_token(who,tokentype,lcok_new);
+		Self::set_lock_token(who,tokentype,lcok_new);
 		Ok(())
 	}
 
@@ -183,7 +195,7 @@ impl<T:Trait> Token<T::AccountId> for Module<T>{
 		let lcok_new = Self::amount_lock(who, tokentype) - value;
 
 		Self::set_free_token(who,tokentype,free_new);
-		Self::set_lcok_token(who,tokentype,lcok_new);
+		Self::set_lock_token(who,tokentype,lcok_new);
 		Ok(())
 	}
 
@@ -213,8 +225,8 @@ impl<T:Trait> Token<T::AccountId> for Module<T>{
 	}
 }
 
-
-pub trait Trait: system::Trait + generic_asset::Trait{
+// + generic_asset::Trait
+pub trait Trait: system::Trait{
 	/// The overarching event type.
 	type Event: From<Event<Self>> + Into<<Self as system::Trait>::Event>;
 
@@ -226,12 +238,17 @@ decl_module! {
 	pub struct Module<T: Trait> for enum Call where origin: T::Origin {
 		fn deposit_event() = default;
 
-        fn transfer_free_token(origin, dest:T::AccountId, tokentype:Vec<u8>, value:u64) -> Result{
+        pub fn transfer_free_token(origin, dest:T::AccountId, tokentype:Vec<u8>, value:u64) -> Result{
             let sender = ensure_signed(origin)?;
             //T::Token::transfer(&sender,&dest,&tokentype,value)?;
             Self::transfer(&sender,&dest,&tokentype,value)?;
             //<Self as Token<_>>::transfer(&sender,&dest,&tokentype,value)?;
             Ok(())
+        }
+
+        pub fn add_new_tokentype(origin, tokentypt:Vec<u8>, precision:u64){
+            let sender = ensure_signed(origin)?;
+            TokenTypeAndPrecision::insert(tokentypt,precision);
         }
 	}
 }
@@ -269,10 +286,48 @@ impl<T: Trait> Module<T>{
 		Ok(())
 	}
 
+	pub fn token_increase_or_decrease(who:&T::AccountId, tokentype:&Vec<u8>, value:u64,
+									  changetype:TokenControl ,add:bool)
+	{
+		let mut new = 0u64;
+		match changetype {
+			TokenControl::Free => {
+				let old = Self::amount_free(who,&tokentype);
+				if add { new = old.checked_add(value).unwrap();} else { new = old.checked_sub(value).unwrap(); }
+				Self::set_free_token(who,&tokentype,new);},
+			TokenControl::Lock => {
+				let old = Self::amount_lock(who,&tokentype);
+				if add { new = old.checked_add(value).unwrap();} else { new = old.checked_sub(value).unwrap(); }
+				Self::set_lock_token(who,&tokentype,new);},
+		}
+	}
+
+
+
 	// after the transcation , exchange the token
-    pub fn exchange_token(seller:&T::AccountId, buyer:&T::AccountId, tokentype_money:Vec<u8>,
-	                      tokentype_share:Vec<u8>, amount:u64, price:u64){
+	pub fn exchange_token(seller:&T::AccountId, buyer:&T::AccountId, tokentype_share:Vec<u8>,
+						  tokentype_money:Vec<u8>, amount:u64, price:u64, lock_price:u64){
+/*
+		println!("seller={:?} buyer={:?} tokentype_share={:?} tokentype_money={:?} amount={:?} price={:?} lock_price={:?}",
+				 seller,buyer,
+				 tokentype_share,
+				 tokentype_money,amount,price,lock_price);
+*/
+		let mut extra_lock_to_free = 0u64;
+		if lock_price > price {
+			extra_lock_to_free = amount * (lock_price - price);
+			Self::unlock(buyer,&tokentype_money,extra_lock_to_free);
+			//println!("extra_lock_to_free = {:?}",extra_lock_to_free);
+		}
 
+		let money = amount * price;
+		//println!("test1 {:?} ", Self::amount_lock(buyer,&tokentype_money));
+		//money exchange
+		Self::token_increase_or_decrease(buyer,&tokentype_money,money,TokenControl::Lock,false);
+		Self::token_increase_or_decrease(seller,&tokentype_money,money,TokenControl::Free,true);
+		// share exchange
+		Self::token_increase_or_decrease(seller,&tokentype_share,amount,TokenControl::Lock,false);
+		Self::token_increase_or_decrease(buyer,&tokentype_share,amount,TokenControl::Free,true);
+	}
 
-    }
 }

@@ -6,6 +6,7 @@ use sr_primitives::traits::{IdentityLookup, Convert, OpaqueKeys, OnInitialize, S
 use sr_primitives::testing::{Header, UintAuthorityId};
 use codec::{Decode,Encode};
 use crate::linked_node::*;
+use crate::Trait;
 
 /// The AccountId alias in this test module.
 pub type AccountId = u64;
@@ -67,6 +68,23 @@ impl balances::Trait for Test {
     type WeightToFee = ();
 }
 
+impl token::Trait for Test {
+    type Token = token::Module<Self>;
+    type Event = ();
+}
+
+impl Trait for Test {
+    type Event = ();
+}
+
+pub type System = system::Module<Test>;
+pub type Balances = balances::Module<Test>;
+
+use crate::Module;
+pub type Dex = Module<Test>;
+pub type TokenT = token::Module<Test>;
+
+
 #[derive(Decode, Encode, Clone, Default)]
 struct TestOrder{
     nodeid:u64,
@@ -97,4 +115,15 @@ pub fn node_test(){
 
 pub fn new_test_ext() -> runtime_io::TestExternalities<Blake2Hasher> {
     system::GenesisConfig::default().build_storage::<Test>().unwrap().into()
+}
+
+pub fn printorder(index:u128){
+    let order = Dex::order_info(index).unwrap();
+    println!("====order index: {:?}===== ",order.index);
+    print!("who {:?}  ",order.who);
+    print!("amount {:?}  ",order.amount);
+    print!("price {:?}  ",order.price);
+    print!("left {:?}  ",order.left);
+    print!("left {:?}  ",order.status);
+    print!("fill_index {:?}  \n",order.fill_index);
 }

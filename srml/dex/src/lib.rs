@@ -293,7 +293,7 @@ decl_module! {
 
 		fn cancel_order(origin, orderpair:OrderPair, index:u128) -> Result {
 		    let sender = ensure_signed(origin)?;
-		    Self::do_cancel_order(&sender,orderpair,index);
+		    Self::do_cancel_order(&sender,orderpair,index)?;
             Ok(())
 		}
 
@@ -394,6 +394,11 @@ impl<T: Trait> Module<T> {
 			time: order_info.time.clone() ,
 		};
 
+		let find_type: OrderType = match new_biddetail.order_type {
+			OrderType::Buy => OrderType::Sell,
+			OrderType::Sell => OrderType::Buy,
+		};
+
 		Self::do_match(find_type, &mut new_biddetail);
 
 		if new_biddetail.amount == 0 {
@@ -401,12 +406,12 @@ impl<T: Trait> Module<T> {
 			<BidOf<T>>::remove(new_biddetail.id);
 		} else {
 			//如果还有剩余，则将其更新到bid_list中
+			//println!("如果还有剩余，则将其更新到bid_list中");
 			Self::insert_bid_list(&new_biddetail);
 		}
 	}
 
 	fn do_match(find_type: OrderType, in_bid_detail: &mut BidDetailT<T>) {
-
 		let mut need_fill: u64 = in_bid_detail.amount;
 		let mut remove_from_wait_bid_list: Vec<BidT<T>> = Vec::new();
 
@@ -469,34 +474,21 @@ impl<T: Trait> Module<T> {
 
 							//let maker_fee: u64 = Self::calculation_maker_fee(amount); // 手续费
 							//let taker_fee: u64 = Self::calculation_taker_fee(amount); // 手续费
-							//成交
-							/*
-							if let Err(_msg) = <pendingorders::Module<T>>::fill_order(
-								in_bid_detail.pair.clone(),
-								maker_user.clone(),
-								taker_user.clone(),
-								maker_user_order_index,
-								taker_user_order_index,
-								order_price,
-								amount,
-								maker_fee,
-								taker_fee,
-							) {
-								Self::deposit_event(RawEvent::MatchFail(
-									match_bid.id,
-									in_bid_detail.pair.clone(),
-									maker_user,
-									taker_user,
-									maker_user_order_index,
-									taker_user_order_index,
-									order_price,
-									amount,
-									maker_fee,
-									taker_fee,
-									<system::Module<T>>::block_number(),
-								));
+
+							let mut aaaaa = T::AccountId::default();
+							let mut bbbbb = T::AccountId::default();
+							match in_bid_detail.order_type{
+								OrderType::Buy => { aaaaa = maker_user; bbbbb = taker_user; }, // maker user = matchbid
+								OrderType::Sell =>{ aaaaa = taker_user; bbbbb = maker_user; }, // taker user = in_bid_detail
 							}
-*/
+							<token::Module<T>>::exchange_token(&aaaaa,&bbbbb,
+															   in_bid_detail.pair.first.clone(),
+															   in_bid_detail.pair.second.clone(),amount,match_bid.price,
+							                                   in_bid_detail.price);
+
+							Self::modify_order_and_generate_the_deal_record(match_bid.id,in_bid_detail.id,
+							                     amount,match_bid.price);
+
 							if fill_num == 0 {
 								break;
 							}
@@ -520,8 +512,26 @@ impl<T: Trait> Module<T> {
 		Self::remove_from_bid(&in_bid_detail.pair, find_type, &remove_from_wait_bid_list);
 	}
 
-	pub fn do_cancel_order(who:&T::AccountId, order:OrderPair, index:u128){
-		//
+	pub fn do_cancel_order(who:&T::AccountId, order:OrderPair, index:u128) -> Result{
+
+		if let Some(mut order) = Self::order_info(index) {
+			if order.who != *who{ return Err("not permitted");}
+            match order.status {
+				OrderStatus::Valid => {
+					order.status = OrderStatus::Canceled;
+					// unlock token
+					let tokentype = match order.ordertype {
+						OrderType::Buy => order.pair.second.clone(),
+						OrderType::Sell => order.pair.first.clone() ,
+					};
+					<token::Module<T>>::unlock(&order.who,&tokentype,order.left);
+
+				},
+				_ => return Err("Canceled or Finished"),
+			}
+			<OrderInfor<T>>::insert(order.index,order);
+		}else { return Err("cant find order"); }
+		Ok(())
 	}
 
 	pub fn is_vaild_pair(orderpair:&OrderPair) -> Result{
@@ -752,4 +762,31 @@ impl<T: Trait> Module<T> {
 		}
 	}
 
+	pub fn modify_order_and_generate_the_deal_record(index_a:u128, index_b:u128, amount:u64, price:u64) -> Result {
+		let mut order_a = if let Some(mut order_a) =
+		Self::order_info(index_a)
+		{
+			order_a.left = order_a.left.checked_sub(amount).unwrap();
+			order_a.fill_index.push(index_b);
+			if order_a.left == 0u64 { order_a.status = OrderStatus::Finished; }
+			order_a
+		} else {
+			return Err("cann't find this maker order");
+		};
+		<OrderInfor<T>>::insert(order_a.index,order_a);
+
+		let mut order_b = if let Some(mut order_b) =
+		Self::order_info(index_b)
+		{
+			order_b.left = order_b.left.checked_sub(amount).unwrap();
+			order_b.fill_index.push(index_a);
+			if order_b.left == 0u64 { order_b.status = OrderStatus::Finished; }
+			order_b
+		} else {
+			return Err("cann't find this maker order");
+		};
+		<OrderInfor<T>>::insert(order_b.index,order_b);
+
+		Ok(())
+	}
 }
