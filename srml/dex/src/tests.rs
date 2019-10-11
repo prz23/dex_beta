@@ -196,6 +196,57 @@ fn cancel_test() {
 fn full_match_test() {
     // Verifies initial conditions of mock
     with_externalities(&mut new_test_ext(), || {
+        // add a tokentype
+        let tokentype = vec![1u8,2u8];
+        let tokentype2 = vec![3u8,4u8];
+        TokenT::add_new_tokentype(Origin::signed(1),tokentype.clone(),1000);
+        TokenT::add_new_tokentype(Origin::signed(1),tokentype2.clone(),1000);
+        let order_pair:OrderPair = OrderPair{
+            first:tokentype.clone(),
+            second:tokentype2.clone(),
+        };
+        assert_ok!(Dex::add_new_order_pair(order_pair.clone()));
 
+        TokenT::depositing_token(&10,tokentype.clone(),20000);
+        assert_eq!(TokenT::free_token((tokentype.clone(),10)),20000);
+        TokenT::depositing_token(&11,tokentype2.clone(),20000);
+        assert_eq!(TokenT::free_token((tokentype2.clone(),11)),20000);
+        TokenT::depositing_token(&12,tokentype.clone(),20000);
+        assert_eq!(TokenT::free_token((tokentype.clone(),12)),20000);
+        TokenT::depositing_token(&13,tokentype2.clone(),20000);
+        assert_eq!(TokenT::free_token((tokentype2.clone(),13)),20000);
+        TokenT::depositing_token(&14,tokentype.clone(),20000);
+        assert_eq!(TokenT::free_token((tokentype.clone(),14)),20000);
+        TokenT::depositing_token(&15,tokentype2.clone(),20000);
+        assert_eq!(TokenT::free_token((tokentype2.clone(),15)),20000);
+        TokenT::depositing_token(&16,tokentype2.clone(),20000);
+        assert_eq!(TokenT::free_token((tokentype2.clone(),16)),20000);
+
+        println!("1");
+        assert_ok!(Dex::put_order_and_match(Origin::signed(11),order_pair.clone(),OrderType::Buy,105,120));
+        printorder(1);
+        println!("2");
+        assert_ok!(Dex::put_order_and_match(Origin::signed(10),order_pair.clone(),OrderType::Sell,100,120));
+        printorder(1);
+        printorder(2);
+        println!("3");
+        assert_ok!(Dex::put_order_and_match(Origin::signed(12),order_pair.clone(),OrderType::Sell,100,120));
+        printorder(1);
+        printorder(2);
+        printorder(3);
+        println!("4");
+        assert_ok!(Dex::put_order_and_match(Origin::signed(13),order_pair.clone(),OrderType::Buy,105,120));
+        printorder(1);
+        printorder(2);
+        printorder(3);
+        printorder(4);
+        TokenT::depositing_token(&13,tokentype2.clone(),20000);
+        assert_ok!(Dex::put_order_and_match(Origin::signed(13),order_pair.clone(),OrderType::Buy,105,120));
+        printorder(5);
+        println!("xx");
+        assert_ok!(Dex::put_order_and_match(Origin::signed(14),order_pair.clone(),OrderType::Sell,100,110));
+        printorder(4);
+        printorder(5);
+        printorder(6);
     });
 }

@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Substrate.  If not, see <http://www.gnu.org/licenses/>.
 
-//! # Sudo Module
+//! # Token Module
 //!
 //! - [`sudo::Trait`](./trait.Trait.html)
 //! - [`Call`](./enum.Call.html)
@@ -32,8 +32,8 @@
 //!
 //! Only the sudo key can call the dispatchable functions from the Sudo module.
 //!
-//! * `sudo` - Make a `Root` call to a dispatchable function.
-//! * `set_key` - Assign a new account to be the sudo key.
+//! * `transfer_free_token` - Make a `Root` call to a dispatchable function.
+//! * `add_new_tokentype` - Assign a new account to be the sudo key.
 //!
 //! ## Usage
 //!

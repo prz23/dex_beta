@@ -307,7 +307,12 @@ decl_module! {
 decl_event!(
 	pub enum Event<T> where AccountId = <T as system::Trait>::AccountId {
 		KeyChanged(AccountId),
-		NewOrder(AccountId,u128),
+		// who index pair type(sell/buy) amount price
+		NewOrder(AccountId,u128,OrderPair,OrderType,u64,u64),
+        // who index
+		CancelOrder(AccountId,u128),
+		// who1 who2 index1 index2 OrderPair amount price
+		MatchOrder(AccountId,AccountId,u128,u128,OrderPair,u64,u64),
 	}
 );
 
@@ -387,7 +392,8 @@ impl<T: Trait> Module<T> {
 		let order : OrderInfo<T> = func(unique_index);
 		<OrderInfor<T>>::insert(unique_index.clone(),&order);
 		OrderIndex::put(unique_index);
-		Self::deposit_event(RawEvent::NewOrder(order.who.clone(),unique_index));
+		Self::deposit_event(RawEvent::NewOrder(order.who.clone(),unique_index,order.pair.clone(),
+		                    order.ordertype.clone(),order.amount,order.price));
 		order
 	}
 
@@ -442,7 +448,6 @@ impl<T: Trait> Module<T> {
 						}
 					}
 				}
-////////////////////////
 				if find_match == true {
 					// match and change token
 					let mut fill_num: u64;
@@ -466,7 +471,6 @@ impl<T: Trait> Module<T> {
 							let taker_user_order_index = in_bid_detail.id;
 							let order_price = match_bid.price;
 							let mut amount: u64;
-
 
 							if fill_num >= match_bid.amount {
 								amount = match_bid.amount;
@@ -496,8 +500,7 @@ impl<T: Trait> Module<T> {
 							                                   in_bid_detail.price);
 
 							Self::modify_order_and_generate_the_deal_record(match_bid.id,in_bid_detail.id,
-							                     amount,match_bid.price);
-
+							                                                amount,match_bid.price);
 							if fill_num == 0 {
 								break;
 							}
@@ -516,14 +519,12 @@ impl<T: Trait> Module<T> {
 				}
 			}
 		}
-////////////////////////////////////////////////////////////
 		// remove full matched bids
 		Self::remove_from_bid(&in_bid_detail.pair, find_type, &remove_from_wait_bid_list);
 	}
 
-	pub fn do_cancel_order(who:&T::AccountId, order:OrderPair, index:u128) -> Result{
-
-		if let Some(mut order) = Self::order_info(index) {
+	pub fn do_cancel_order(who:&T::AccountId, order2:OrderPair, index:u128) -> Result{
+		let mut order = if let Some(mut order) = Self::order_info(index) {
 			if order.who != *who{ return Err("not permitted");}
             match order.status {
 				OrderStatus::Valid => {
@@ -538,8 +539,13 @@ impl<T: Trait> Module<T> {
 				},
 				_ => return Err("Canceled or Finished"),
 			}
-			<OrderInfor<T>>::insert(order.index,order);
-		}else { return Err("cant find order"); }
+			<OrderInfor<T>>::insert(order.index,order.clone());
+			order
+		}else { return Err("cant find order"); };
+		if let Some(mut in_bid_detail) = <BidOf<T>>::get(index){
+			Self::cancel_bid(&in_bid_detail);
+		}
+		Self::deposit_event(RawEvent::CancelOrder(order.who.clone(),index));
 		Ok(())
 	}
 
@@ -701,7 +707,7 @@ impl<T: Trait> Module<T> {
 		for nn in 0..remove_bid.len() {
 			if let Some(header) = Self::bidlist_header_for((pair.clone(), order_type)) {
 				let mut index = header.index();
-
+				println!("&&&&&&&&&&&&&&&&&&&remove_from_bid {:?}",index);
 				while let Some(mut node) = Self::bidlist_cache(&index) {
 					if node.data.price == remove_bid[nn].price {
 						let _=node.remove_option_node_withkey::<LinkedMultiKey<T>, (OrderPair,OrderType)>((pair.clone(),order_type));
@@ -782,7 +788,7 @@ impl<T: Trait> Module<T> {
 		} else {
 			return Err("cann't find this maker order");
 		};
-		<OrderInfor<T>>::insert(order_a.index,order_a);
+		<OrderInfor<T>>::insert(order_a.index,order_a.clone());
 
 		let mut order_b = if let Some(mut order_b) =
 		Self::order_info(index_b)
@@ -794,8 +800,9 @@ impl<T: Trait> Module<T> {
 		} else {
 			return Err("cann't find this maker order");
 		};
-		<OrderInfor<T>>::insert(order_b.index,order_b);
-
+		<OrderInfor<T>>::insert(order_b.index,order_b.clone());
+		Self::deposit_event(RawEvent::MatchOrder(order_a.who,order_b.who,index_a,index_b,
+												 order_a.pair,amount,price));
 		Ok(())
 	}
 }
