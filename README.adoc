@@ -4,6 +4,78 @@
 :toc:
 :sectnums:
 
+== DEX & TOKEN Usage
+
+事件
+
+事件名称 - NewOrder 
+用途 - 当新挂单挂上的时候发出该事件
+参数 - Who：挂单人账号AccountId 
+       Index：挂单的唯一编号u128
+	   OrderPair：挂单的交易对
+	   OrderType：买单或者卖单 
+	   Amount：总挂单数量u64
+	   Price：挂单价格u64
+	   
+	   
+事件名称 - CancelOrder 
+用途 - 当撤单的时候发出该事件
+参数 - Who：挂单人账号AccountId 
+       Index：挂单的唯一编号u128
+       
+	   
+事件名称 - MatchOrder 
+用途 - 当撮合成功一笔交易的时候发出该事件
+参数 - Who1：挂单人账号AccountId  被动的人
+       Who2：挂单人账号AccountId  主动的人
+       Index1：挂单的唯一编号u128  被动
+       Index2：挂单的唯一编号u128  主动
+	   OrderPair：挂单的交易对
+	   Amount：成交数量u64
+	   Price：成交价格u64
+	   
+查询DEX
+    编号，交易对
+	OrderIndex get(order_index): u128 挂单唯一编号当前最大值
+    OrderPairList get(order_pair_list): Vec<OrderPair> 	 全部合法的交易对
+	 
+	盘口专用数据 
+	某种交易对的买或卖的头的index
+    pub BidListHeaderFor get(bidlist_header_for): map (OrderPair,OrderType) => Option<MultiNodeIndex<(OrderPair,OrderType), BidT<T>>>;
+	某种交易对的买或卖的尾的index
+	pub BidListTailFor get(bidlist_tail_for): map (OrderPair,OrderType) => Option<MultiNodeIndex<(OrderPair,OrderType), BidT<T>>>;
+    pub BidListCache get(bidlist_cache): map u128 => Option<Node<BidT<T>>>;
+    NodeId get(nodeid):u128;
+    盘口数据，某个挂单在盘口队列里面的信息
+	pub BidOf get(bid_of):map u128 => Option<BidDetailT<T>>;
+
+    具体挂单信息
+    pub OrderInfor get(order_info): map u128 => Option<OrderInfo<T>>;
+
+查询TOKEN
+    所有token类型以及其对应的精度
+    TokenTypeAndPrecision get(token_type_and_precision): map Vec<u8> => Option<u64>;
+    
+	可用token
+	FreeToken get(free_token) : map (Vec<u8>,T::AccountId) => u64;
+	因为挂单锁定着的token
+	LockedToken get(locked_token) : map (Vec<u8>,T::AccountId) => u64;	 
+
+操作接口DEX
+    挂单并撮合 pair 买单或者卖单 数量 价格
+    put_order_and_match(origin, orderpair:OrderPair, ordertype:OrderType, amount:u64, price:u64)
+    
+	通过挂单的index来撤单
+	cancel_order(origin, orderpair:OrderPair, index:u128)
+
+操作接口TOKEN
+
+    transfer_free_token(origin, dest:T::AccountId, tokentype:Vec<u8>, value:u64)
+	
+	add_new_tokentype(origin, tokentypt:Vec<u8>, precision:u64)
+
+
+
 == Intro in one sentence
 
 Substrate is a next-generation framework for blockchain innovation.
