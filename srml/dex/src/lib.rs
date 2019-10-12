@@ -565,8 +565,7 @@ impl<T: Trait> Module<T> {
 		<BidOf<T>>::insert(in_bid_detail.id, in_bid_detail.clone());
 
 		let mut finish = false;
-		if let Some(header) =
-		Self::bidlist_header_for((in_bid_detail.pair.clone(), in_bid_detail.order_type))
+		if let Some(header) = Self::bidlist_header_for((in_bid_detail.pair.clone(), in_bid_detail.order_type))
 		{
 			let mut index = header.index();
 
@@ -707,7 +706,7 @@ impl<T: Trait> Module<T> {
 		for nn in 0..remove_bid.len() {
 			if let Some(header) = Self::bidlist_header_for((pair.clone(), order_type)) {
 				let mut index = header.index();
-				println!("&&&&&&&&&&&&&&&&&&&remove_from_bid {:?}",index);
+				//println!("&&&&&&&&&&&&&&&&&&&remove_from_bid {:?}",index);
 				while let Some(mut node) = Self::bidlist_cache(&index) {
 					if node.data.price == remove_bid[nn].price {
 						let _=node.remove_option_node_withkey::<LinkedMultiKey<T>, (OrderPair,OrderType)>((pair.clone(),order_type));
@@ -781,7 +780,10 @@ impl<T: Trait> Module<T> {
 		let mut order_a = if let Some(mut order_a) =
 		Self::order_info(index_a)
 		{
-			order_a.left = order_a.left.checked_sub(amount).unwrap();
+			order_a.left = match order_a.left.checked_sub(amount){
+			    Some(b) => b,
+			    None => 0,
+			};
 			order_a.fill_index.push(index_b);
 			if order_a.left == 0u64 { order_a.status = OrderStatus::Finished; }
 			order_a
@@ -793,7 +795,10 @@ impl<T: Trait> Module<T> {
 		let mut order_b = if let Some(mut order_b) =
 		Self::order_info(index_b)
 		{
-			order_b.left = order_b.left.checked_sub(amount).unwrap();
+			order_b.left = match order_b.left.checked_sub(amount){
+			    Some(b) => b,
+			    None => 0,
+		    };
 			order_b.fill_index.push(index_a);
 			if order_b.left == 0u64 { order_b.status = OrderStatus::Finished; }
 			order_b

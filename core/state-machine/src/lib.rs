@@ -1012,7 +1012,7 @@ mod tests {
 		// fetch read proof from 'remote' full node
 		let remote_backend = trie_backend::tests::test_trie();
 		let remote_root = remote_backend.storage_root(::std::iter::empty()).0;
-		let remote_proof = prove_read(remote_backend, &[b"value2"]).unwrap();
+		let remote_proof = prove_read(remote_backend, &[b"value100"]).unwrap();
  		// check proof locally
 		let local_result1 = read_proof_check::<Blake2Hasher, _>(
 			remote_root,

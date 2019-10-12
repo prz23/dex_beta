@@ -248,5 +248,17 @@ fn full_match_test() {
         printorder(4);
         printorder(5);
         printorder(6);
+
     });
 }
+/*
+fn asd(){
+
+}
+extern crate test;
+use test::Bencher;
+#[bench]
+fn bench_add_two(b: &mut Bencher) {
+    b.iter(||  asd() );
+}
+*/
