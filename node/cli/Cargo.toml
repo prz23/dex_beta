@@ -8,7 +8,7 @@ edition = "2018"
 
 [dependencies]
 log = "0.4"
-tokio = "0.1.7"
+tokio = "1.8.4"
 futures = "0.1"
 exit-future = "0.1"
 jsonrpc-core = "13.2.0"

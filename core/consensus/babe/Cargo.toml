@@ -41,7 +41,7 @@ substrate-executor = { path = "../../executor" }
 network = { package = "substrate-network", path = "../../network", features = ["test-helpers"]}
 service = { package = "substrate-service", path = "../../service" }
 test-client = { package = "substrate-test-runtime-client", path = "../../test-runtime/client" }
-tokio = "0.1.18"
+tokio = "1.8.4"
 env_logger = "0.6.1"
 tempfile = "3.1"
 
